@@ -1,9 +1,11 @@
-#   -*- coding: utf-8 -*-
-#   @author: Hiago dos Santos (hiagop22@gmail.com)
-#
-#   Tela de login com opção de entrar e de criar novo usuário, sendo que
-#   os usuários cadastrados são armazenados em um arquivo database.
+#!/usr/bin/env python3.5
+#-*- coding: utf-8 -*-
+"""
+    @author: Hiago dos Santos (hiagop22@gmail.com)
 
+    Tela de login com opção de entrar e de criar novo usuário, sendo que
+    os usuários cadastrados são armazenados em um arquivo database.
+"""
 import dbm
 try:
     from Tkinter import *
@@ -13,11 +15,13 @@ except:
     print('Não foi possível importar o módulo tkinter')
     exit(1)
 
+USUARIO_EM_BRANCO = 4
 USUARIO_NAO_CADASTRADO = 1
 SENHA_INVALIDA = 2
 USUARIO_CADASTRADO_E_SENHA_CORRETA = 3
 ERRO = 0
 ARQUIVO = 'pessoas.db'
+COR_DE_FUNDO = '#FFFFFF'
 
 class Pessoa(object):
     """docstring for Pessoa"""
@@ -30,21 +34,24 @@ class ArquivoDbm(object):
     def __init__(self, arquivo):
         self.arquivo = arquivo
 
-    def verifica_usuario(self, user, password = ''):
+    def verifica_usuario(self, user = '', password = ''):
         try:
             with dbm.open(self.arquivo, 'c') as p_db:
-                if not user in p_db:
-                    return USUARIO_NAO_CADASTRADO
+                if user == '':
+                    return USUARIO_EM_BRANCO
                 else:
-                    if p_db[user].decode() != password:
-                        return SENHA_INVALIDA
+                    if not user in p_db:
+                        return USUARIO_NAO_CADASTRADO
                     else:
-                        return USUARIO_CADASTRADO_E_SENHA_CORRETA
+                        if p_db[user].decode() != password:
+                            return SENHA_INVALIDA
+                        else:
+                            return USUARIO_CADASTRADO_E_SENHA_CORRETA
         except :
             print('Ocorreu um erro inesperado...')
             return ERRO
 
-    def insere_usuario(self, user, password):
+    def insere_usuario(self, user = '', password = ''):
         try:
             with dbm.open(self.arquivo, 'c') as p_db:
                 p_db[user] = password
@@ -55,24 +62,62 @@ class ArquivoDbm(object):
 class Login(object):
     """docstring for Login"""
     def __init__(self, instancia):
-        self.user = Label(instancia)
+        self.fonte = ('Trebuchet MS', '15', 'bold')
+
+        #Frames do programa
+        self.frame0 = Frame(instancia, bg = COR_DE_FUNDO)
+        self.frame1 = Frame(instancia, bg = COR_DE_FUNDO)
+        self.frame2 = Frame(instancia, bg = COR_DE_FUNDO)
+        self.frame3 = Frame(instancia, bg = COR_DE_FUNDO)
+        self.frame4 = Frame(instancia, bg = COR_DE_FUNDO)
+        self.frame5 = Frame(instancia, bg = COR_DE_FUNDO)
+        self.frame6 = Frame(instancia, bg = COR_DE_FUNDO)
+
+        #Subframe que contém os botões de entrar e criar usuário
+        self.subframe = Frame(self.frame6, bg = COR_DE_FUNDO)
+
+        #Empacotando as frames
+        self.frame0.pack()
+        self.frame1.pack()
+        self.frame2.pack()
+        self.frame3.pack()
+        self.frame4.pack()
+        self.frame5.pack()
+        self.frame6.pack()
+        self.subframe.pack()
+
+        #Inserindo imagem de logo no programa
+        logo = PhotoImage(file = 'images/logo2.gif')
+        self.logo = Label(self.frame0)
+        self.logo['image'] = logo
+        self.logo.image = logo
+        self.logo['bg'] = COR_DE_FUNDO
+        self.logo.pack()
+
+        #Texto que pede o nome de usuário
+        self.user = Label(self.frame1, bg = COR_DE_FUNDO, font = self.fonte)
         self.user.pack()
 
-        self.user_received = Entry(instancia)
+        #Entrada do nome de usuário
+        self.user_received = Entry(self.frame2)
         self.user_received.pack()
 
-        self.password = Label(instancia)
+        #Texto de que pede a senha
+        self.password = Label(self.frame3, bg = COR_DE_FUNDO, font = self.fonte)
         self.password.pack()
 
-        self.password_received = Entry(instancia, show = '*')
+        #Entrada da senha
+        self.password_received = Entry(self.frame4, show = '*')
         self.password_received.pack()
 
-        self.info = Label(instancia)
+        #Texto com as informaçẽs de a respeito da validação do usuário
+        self.info = Label(self.frame5, pady = 10, bg = COR_DE_FUNDO)
         self.info.pack()
 
-        self.enter = Button(instancia)
+        #Botões para entrar ou criar novo usuário
+        self.enter = Button(self.subframe, width = 7)
         self.enter.pack(side = 'left')
-        self.create = Button(instancia)
+        self.create = Button(self.subframe, width = 7)
         self.create.pack(side = 'right')
 
         self.arq_dbm = ArquivoDbm(ARQUIVO)
@@ -80,8 +125,8 @@ class Login(object):
         self.sign_in()
 
     def sign_in(self):
-        self.user_received.delete(0, len(self.user_received.get()))
-        self.password_received.delete(0, len(self.password_received.get()))
+        self.user_received.delete(0, END)
+        self.password_received.delete(0, END)
 
         self.user['text'] = 'Usuário'
         self.user['fg'] = 'black'
@@ -100,8 +145,8 @@ class Login(object):
         self.create['command'] = self.create_user
 
     def create_user(self):
-        self.user_received.delete(0, len(self.user_received.get()))
-        self.password_received.delete(0, len(self.password_received.get()))
+        self.user_received.delete(0, END)
+        self.password_received.delete(0, END)
 
         self.user['text'] = 'Nome de Usuário'
         self.user['fg'] = 'green'
@@ -144,23 +189,28 @@ class Login(object):
         self.pessoa.password = self.password_received.get()
 
         resultado = self.arq_dbm.verifica_usuario(self.pessoa.user, self.pessoa.password)
-        if resultado == USUARIO_NAO_CADASTRADO:
-            self.info['text'] = 'Usuário não cadastrado'
+        if resultado == USUARIO_EM_BRANCO:
+            self.info['text'] = 'Usuário em branco'
             self.info['fg'] = 'red'
         else:
-            if resultado == SENHA_INVALIDA:
-                self.info['text'] = 'Senha inválida'
+            if resultado == USUARIO_NAO_CADASTRADO:
+                self.info['text'] = 'Usuário não cadastrado'
                 self.info['fg'] = 'red'
             else:
-                if resultado == USUARIO_CADASTRADO_E_SENHA_CORRETA:
-                    self.info['text'] = 'Seja bem vindo ' + self.pessoa.user
-                    self.info['fg'] = 'blue'
+                if resultado == SENHA_INVALIDA:
+                    self.info['text'] = 'Senha inválida'
+                    self.info['fg'] = 'red'
                 else:
-                    if resultado == ERRO:
-                        exit(1)
+                    if resultado == USUARIO_CADASTRADO_E_SENHA_CORRETA:
+                        self.info['text'] = 'Seja bem vindo ' + self.pessoa.user
+                        self.info['fg'] = 'blue'
+                    else:
+                        if resultado == ERRO:
+                            exit(1)
 
 instancia = Tk()
 instancia.title('Login')
+instancia['bg'] = COR_DE_FUNDO
 
 Login(instancia)
 
