@@ -6,7 +6,7 @@
     Tela de login com opção de entrar e de criar novo usuário, sendo que
     os usuários cadastrados são armazenados em um arquivo database.
 """
-import dbm
+import shelve
 try:
     from Tkinter import *
 except ImportError:
@@ -22,12 +22,14 @@ USUARIO_CADASTRADO_E_SENHA_CORRETA = 3
 ERRO = 0
 ARQUIVO = 'pessoas.db'
 COR_DE_FUNDO = '#FFFFFF'
+REMEMBER_USER_DESATIVADO = 0
+REMEMBER_USER_ATIVADO = 1
 
 class Pessoa(object):
     """docstring for Pessoa"""
     def __init__(self, user = '', password = ''):
         self.user = user
-        self.password = password
+        self.__password = password
 
 class ArquivoDbm(object):
     """docstring for ArqDbm"""
@@ -35,15 +37,16 @@ class ArquivoDbm(object):
         self.arquivo = arquivo
 
     def verifica_usuario(self, user = '', password = ''):
+        """verifica se o usuário e senha, passados como argumentos, estão no arquivo dbm"""
         try:
-            with dbm.open(self.arquivo, 'c') as p_db:
+            with shelve.open(self.arquivo) as p_db:
                 if user == '':
                     return USUARIO_EM_BRANCO
                 else:
                     if not user in p_db:
                         return USUARIO_NAO_CADASTRADO
                     else:
-                        if p_db[user].decode() != password:
+                        if p_db[user] != password:
                             return SENHA_INVALIDA
                         else:
                             return USUARIO_CADASTRADO_E_SENHA_CORRETA
@@ -52,17 +55,45 @@ class ArquivoDbm(object):
             return ERRO
 
     def insere_usuario(self, user = '', password = ''):
+        """insere um novo usuário com sua senha no arquivo dbm"""
         try:
-            with dbm.open(self.arquivo, 'c') as p_db:
+            with shelve.open(self.arquivo) as p_db:
                 p_db[user] = password
         except :
             print('Ocorreu um erro inesperado...')
             return ERRO
 
+    def insere_ultimo_usuario_no_arq(self, ultimo_acesso = 'n', user = '', password = ''):
+        """
+        insere uma lista no arquivo dbm com o usuário e senha,
+        e que representa o último acesso realizado. Caso o Check button
+        esteja ativado
+        """
+        lista_de_ultimo_acesso = [ultimo_acesso, user, password]
+        try:
+            with shelve.open(self.arquivo) as p_db:
+                p_db['ultimo_acesso'] = lista_de_ultimo_acesso
+        except :
+            print('Ocorreu um erro inesperado...1')
+            exit(1)
+
+    def devolve_ult_acesso(self):
+        lista_de_ultimo_acesso = []
+        try:
+            with shelve.open(self.arquivo) as p_db:
+                if 'ultimo_acesso' in p_db:
+                    lista_de_ultimo_acesso = p_db['ultimo_acesso']
+                    return lista_de_ultimo_acesso[0], lista_de_ultimo_acesso[1], lista_de_ultimo_acesso[2]
+                else:
+                    return 'n', '', ''
+        except :
+            print('Ocorreu um erro inesperado...2')
+            exit(1)
+
 class Login(object):
     """docstring for Login"""
     def __init__(self, instancia):
-        self.fonte = ('Trebuchet MS', '15', 'bold')
+        self.fonte = ('Trebuchet MS', '15') #, 'bold' )
 
         #Frames do programa
         self.frame0 = Frame(instancia, bg = COR_DE_FUNDO)
@@ -72,9 +103,10 @@ class Login(object):
         self.frame4 = Frame(instancia, bg = COR_DE_FUNDO)
         self.frame5 = Frame(instancia, bg = COR_DE_FUNDO)
         self.frame6 = Frame(instancia, bg = COR_DE_FUNDO)
+        self.frame7 = Frame(instancia, bg = COR_DE_FUNDO)
 
         #Subframe que contém os botões de entrar e criar usuário
-        self.subframe = Frame(self.frame6, bg = COR_DE_FUNDO)
+        self.subframe = Frame(self.frame7, bg = COR_DE_FUNDO)
 
         #Empacotando as frames
         self.frame0.pack()
@@ -84,6 +116,7 @@ class Login(object):
         self.frame4.pack()
         self.frame5.pack()
         self.frame6.pack()
+        self.frame7.pack()
         self.subframe.pack()
 
         #Inserindo imagem de logo no programa
@@ -107,12 +140,23 @@ class Login(object):
         self.password.pack()
 
         #Entrada da senha
-        self.password_received = Entry(self.frame4, show = '*')
-        self.password_received.pack()
+        self.__password_received = Entry(self.frame4, show = '*')
+        self.__password_received.pack()
 
         #Texto com as informaçẽs de a respeito da validação do usuário
         self.info = Label(self.frame5, pady = 10, bg = COR_DE_FUNDO)
         self.info.pack()
+
+        #Checkbutton para lembrar do usuário
+        self.lembrar_usuario = IntVar()
+        self.remember_user = Checkbutton(self.frame6, text = 'Lembrar usuário', bg = COR_DE_FUNDO, highlightbackground = COR_DE_FUNDO)
+        self.remember_user['activebackground'] = COR_DE_FUNDO
+        self.remember_user['pady'] = 10
+        self.remember_user['offvalue'] = REMEMBER_USER_DESATIVADO
+        self.remember_user['onvalue'] = REMEMBER_USER_ATIVADO
+        self.remember_user['variable'] = self.lembrar_usuario
+        self.remember_user['highlightthickness'] = -1 #Retirando a borda ao redor do Checkbutton
+        self.remember_user.pack()
 
         #Botões para entrar ou criar novo usuário
         self.enter = Button(self.subframe, width = 7)
@@ -122,11 +166,21 @@ class Login(object):
 
         self.arq_dbm = ArquivoDbm(ARQUIVO)
         self.pessoa = Pessoa()
+        self.acessar_ult = ''
+
         self.sign_in()
 
     def sign_in(self):
+        #Limpando Entry de user_received e password_received
         self.user_received.delete(0, END)
-        self.password_received.delete(0, END)
+        self.__password_received.delete(0, END)
+
+        self.acessar_ult, self.pessoa.user, self.pessoa.__password = self.arq_dbm.devolve_ult_acesso()
+
+        if self.lembrar_usuario.get() == REMEMBER_USER_ATIVADO or self.acessar_ult == 's':
+            self.user_received.insert(END, self.pessoa.user)
+            self.__password_received.insert(END, self.pessoa.__password)
+            self.remember_user.select()
 
         self.user['text'] = 'Usuário'
         self.user['fg'] = 'black'
@@ -137,16 +191,18 @@ class Login(object):
         self.info['text'] = ''
         self.info['fg'] = 'red'
 
-        self.enter['text'] = 'Entrar'
+        #Configurando os Buttons de 'ENTRAR' e 'CRIAR'(novo usuário)
+        self.enter['text'] = 'ENTRAR'
         self.enter['command'] = self.__verificar
-        self.create['text'] = 'Novo'
+        self.create['text'] = 'NOVO'
         self.create['fg'] = 'black'
         self.create['bg'] = self.enter['bg']
         self.create['command'] = self.create_user
 
     def create_user(self):
+        #Limpando Entry de user_received e password_received
         self.user_received.delete(0, END)
-        self.password_received.delete(0, END)
+        self.__password_received.delete(0, END)
 
         self.user['text'] = 'Nome de Usuário'
         self.user['fg'] = 'green'
@@ -158,39 +214,41 @@ class Login(object):
         self.info['text'] = ''
         self.info['fg'] = 'red'
 
-        self.create['text'] = 'Criar'
+        self.create['text'] = 'CRIAR'
         self.create['fg'] = 'white'
         self.create['bg'] = 'black'
         self.create['command'] = self.__inserir
 
     def __inserir(self):
         self.pessoa.user = self.user_received.get().lower()
-        self.pessoa.password = self.password_received.get()
+        self.pessoa.__password = self.__password_received.get()
 
-        if self.pessoa.user == '' and self.pessoa.password != '':
+        if self.pessoa.user == '' and self.pessoa.__password != '':
             self.info['text'] = 'Usuário não pode ficar em branco'
         else:
-            if self.pessoa.user != '' and self.pessoa.password == '':
+            if self.pessoa.user != '' and self.pessoa.__password == '':
                 self.info['text'] = 'Senha não pode ficar em branco'
             else:
-                if self.pessoa.user == '' and self.pessoa.password == '':
+                if self.pessoa.user == '' and self.pessoa.__password == '':
                     self.info['text'] = 'Usuário e senha não podem ficar em branco'
                 else:
                     if self.arq_dbm.verifica_usuario(self.pessoa.user) == USUARIO_NAO_CADASTRADO:
-                        self.arq_dbm.insere_usuario(self.pessoa.user, self.pessoa.password)
-                        self.user_received.delete(0, len(self.pessoa.user))
-                        self.password_received.delete(0, len(self.pessoa.password))
+                        self.arq_dbm.insere_usuario(self.pessoa.user, self.pessoa.__password)
+                        if self.lembrar_usuario.get() == REMEMBER_USER_ATIVADO:
+                            self.arq_dbm.insere_ultimo_usuario_no_arq('s', pessoa.user, pessoa.__password)
+                        else:
+                            self.arq_dbm.insere_ultimo_usuario_no_arq('n', pessoa.user, pessoa.__password)
                         self.sign_in()
                     else:
                         self.info['text'] = 'Usuário já cadastrado'
 
     def __verificar(self):
         self.pessoa.user = self.user_received.get().lower()
-        self.pessoa.password = self.password_received.get()
+        self.pessoa.__password = self.__password_received.get()
 
-        resultado = self.arq_dbm.verifica_usuario(self.pessoa.user, self.pessoa.password)
+        resultado = self.arq_dbm.verifica_usuario(self.pessoa.user, self.pessoa.__password)
         if resultado == USUARIO_EM_BRANCO:
-            self.info['text'] = 'Usuário em branco'
+            self.info['text'] = 'Usuário não pode ficar em branco'
             self.info['fg'] = 'red'
         else:
             if resultado == USUARIO_NAO_CADASTRADO:
@@ -204,6 +262,10 @@ class Login(object):
                     if resultado == USUARIO_CADASTRADO_E_SENHA_CORRETA:
                         self.info['text'] = 'Seja bem vindo ' + self.pessoa.user
                         self.info['fg'] = 'blue'
+                        if self.lembrar_usuario.get() == REMEMBER_USER_ATIVADO:
+                            self.arq_dbm.insere_ultimo_usuario_no_arq('s', self.pessoa.user, self.pessoa.__password)
+                        else:
+                            self.arq_dbm.insere_ultimo_usuario_no_arq('n', self.pessoa.user, self.pessoa.__password)
                     else:
                         if resultado == ERRO:
                             exit(1)
