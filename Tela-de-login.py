@@ -166,7 +166,7 @@ class Login(object):
 
         self.arq_dbm = ArquivoDbm(ARQUIVO)
         self.pessoa = Pessoa()
-        self.acessar_ult = ''
+        self.acessar_ult = ''   #variável auxiliar que vai ler do arquivo dbm o caractere 's'(acessar último) ou 'n' (não acessar último user)
 
         self.sign_in()
 
@@ -175,8 +175,10 @@ class Login(object):
         self.user_received.delete(0, END)
         self.__password_received.delete(0, END)
 
+        #Verifica se o último usuário que fez login desejou que lembrasse do nome de usuário e senha dela
         self.acessar_ult, self.pessoa.user, self.pessoa.__password = self.arq_dbm.devolve_ult_acesso()
 
+        #Se tiver desejado que lembrasse então atribui suas informações aos widgets: user_received e password_reecived
         if self.lembrar_usuario.get() == REMEMBER_USER_ATIVADO or self.acessar_ult == 's':
             self.user_received.insert(END, self.pessoa.user)
             self.__password_received.insert(END, self.pessoa.__password)
@@ -220,6 +222,7 @@ class Login(object):
         self.create['command'] = self.__inserir
 
     def __inserir(self):
+        """Insere os dados no novo usuário, mas antes fazendo as devidas validações dos dados"""
         self.pessoa.user = self.user_received.get().lower()
         self.pessoa.__password = self.__password_received.get()
 
@@ -243,9 +246,11 @@ class Login(object):
                         self.info['text'] = 'Usuário já cadastrado'
 
     def __verificar(self):
+        """Verifica se o nome de usuário e senha estão corretos e se deseja que lembre desses dados"""
         self.pessoa.user = self.user_received.get().lower()
         self.pessoa.__password = self.__password_received.get()
 
+        #Valida suas informações de login no arquivo que os tem guardados
         resultado = self.arq_dbm.verifica_usuario(self.pessoa.user, self.pessoa.__password)
         if resultado == USUARIO_EM_BRANCO:
             self.info['text'] = 'Usuário não pode ficar em branco'
