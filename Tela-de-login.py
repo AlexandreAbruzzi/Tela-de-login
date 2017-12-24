@@ -21,8 +21,8 @@ USUARIO_CADASTRADO_E_SENHA_CORRETA = 3
 ERRO = 0
 ARQUIVO = 'pessoas.db'
 COR_DE_FUNDO = '#FFFFFF'
-REMEMBER_USER_DESATIVADO = 0
 REMEMBER_USER_ATIVADO = 1
+REMEMBER_USER_DESATIVADO = 0
 
 class Pessoa(object):
     def __init__(self, user = '', password = '', nome = '', email = ''):
@@ -42,7 +42,7 @@ class ArquivoDbm(object):
                 if not user in p_db:
                     return USUARIO_NAO_CADASTRADO
                 else:
-                    if p_db[user] != password:
+                    if p_db[user][0] != password:
                         return SENHA_INVALIDA
                     else:
                         return USUARIO_CADASTRADO_E_SENHA_CORRETA
@@ -251,7 +251,7 @@ class Login(object):
         self.password_createuser = Label(self.frame16, text = 'Senha', bg = COR_DE_FUNDO, font = self.fonte, fg = 'green')
 
         #Entrada da senha
-        self.__password_received_createuser = Entry(self.frame17, show = '*', width = 25)
+        self.__password_received_createuser = Entry(self.frame17, show = '*')
 
         #Texto com as informaçẽs de a respeito da validação do usuário
         self.info_createuser = Label(self.frame18, text = '', pady = 10, bg = COR_DE_FUNDO, fg = 'red')
@@ -338,7 +338,7 @@ class Login(object):
         self.info_createuser.destroy()
         self.remember_user.destroy()
         self.enter_createuser.destroy()
-        self.create_createuser.destroy(side = 'right')
+        self.create_createuser.destroy()
 
     def valida_antes_de_sign_in(self):
         self.esquece_widgets_createuser()
@@ -346,6 +346,9 @@ class Login(object):
 
     def sign_in(self):
         self.inicializa_widgets_signin()
+
+        self.user_received_signin.delete(0, END)
+        self.__password_received_signin.delete(0, END)
 
         #Verifica se o último usuário que fez login desejou que lembrasse do nome de usuário e senha dela
         self.acessar_ult, self.pessoa.user, self.pessoa.__password = self.arq_dbm.devolve_ult_acesso()
@@ -362,36 +365,31 @@ class Login(object):
 
     def __inserir(self):
         """Insere os dados no novo usuário, mas antes fazendo as devidas validações dos dados"""
+        self.pessoa.nome = self.nome_received_createuser.get().lower()
+        self.pessoa.email = self.email_received_createuser.get().lower()
         self.pessoa.user = self.user_received_createuser.get().lower()
         self.pessoa.__password = self.__password_received_createuser.get()
 
-        if self.pessoa.user == '' and self.pessoa.__password != '':
-            self.info_createuser['text'] = 'Usuário não pode ficar em branco'
+        if (self.pessoa.nome or self.pessoa.email or self.pessoa.user or self.pessoa.__password) == '' :
+            self.info_createuser['text'] = 'Nenhum campo pode ficar em branco'
+            self.info_createuser['fg'] = 'red'
         else:
-            if self.pessoa.user != '' and self.pessoa.__password == '':
-                self.info_createuser['text'] = 'Senha não pode ficar em branco'
+            if self.arq_dbm.verifica_usuario(self.pessoa.user) == USUARIO_NAO_CADASTRADO:
+                self.arq_dbm.insere_usuario(self.pessoa.user, self.pessoa.__password, self.pessoa.nome, self.pessoa.email)
+                self.arq_dbm.insere_ultimo_usuario_no_arq('s', self.pessoa.user, self.pessoa.password)
+                self.esquece_widgets_createuser()
+                self.sign_in()
             else:
-                if self.pessoa.user == '' and self.pessoa.__password == '':
-                    self.info_createuser['text'] = 'Usuário e senha não podem ficar em branco'
-                else:
-                    if self.arq_dbm.verifica_usuario(self.pessoa.user) == USUARIO_NAO_CADASTRADO:
-                        self.arq_dbm.insere_usuario(self.pessoa.user, self.pessoa.__password)
-                        self.arq_dbm.insere_ultimo_usuario_no_arq('n', pessoa.user, pessoa.__password)
-                        self.esquece_widgets_createuser()
-                        self.sign_in()
-                    else:
-                        self.info_createuser['text'] = 'Usuário já cadastrado'
+                self.info_createuser['text'] = 'Usuário já cadastrado'
 
     def __verificar(self):
         """Verifica se o nome de usuário e senha estão corretos e se deseja que lembre desses dados"""
-        self.pessoa.nome = self.nome_received_createuser.get().lower()
-        self.pessoa.email = self.email_received_createuser.get.get()
         self.pessoa.user = self.user_received_signin.get().lower()
         self.pessoa.__password = self.__password_received_signin.get()
 
         #Valida suas informações de login no arquivo que os tem guardados
 
-        if (self.pessoa.nome or self.pessoa.email or self.pessoa.user or self.pessoa.__password) == '' :
+        if (self.pessoa.user or self.pessoa.__password) == '' :
             self.info_signin['text'] = 'Nenhum campo pode ficar em branco'
             self.info_signin['fg'] = 'red'
         else:
@@ -403,14 +401,12 @@ class Login(object):
                     self.info_signin['text'] = 'Senha inválida'
                 else:
                     if resultado == USUARIO_CADASTRADO_E_SENHA_CORRETA:
-                        self.info_signin['text'] = 'Seja bem vindo ' + self.pessoa.user
-                        self.info_signin['fg'] = 'blue'
                         if self.lembrar_usuario.get() == REMEMBER_USER_ATIVADO:
                             self.arq_dbm.insere_ultimo_usuario_no_arq('s', self.pessoa.user, self.pessoa.__password)
                         else:
-                            self.arq_dbm.insere_ultimo_usuario_no_arq('n', self.pessoa.user, self.pessoa.__password)
-
-                        #Aqui usa o .destroy() para todos os widgets
+                            self.arq_dbm.insere_ultimo_usuario_no_arq('n')
+                        self.destroi_widgets_createuser()
+                        self.destroi_widgets_signin()
                     else:
                         if resultado == ERRO:
                             exit(1)
