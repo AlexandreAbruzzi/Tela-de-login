@@ -1,8 +1,6 @@
 #!/usr/bin/env python3.5
 #-*- coding: utf-8 -*-
 """
-    @author: Hiago dos Santos (hiagop22@gmail.com)
-
     Tela de login com opção de entrar e de criar novo usuário, sendo que
     os usuários cadastrados são armazenados em um arquivo database.
 """
